@@ -1,9 +1,6 @@
-// ── Puesto Frío — Service Worker ─────────────────────────────────
-// Estrategia: Cache-first para assets estáticos, Network-first para Firebase.
-// Permite uso offline con los datos del último sync.
-
-const CACHE_NAME = 'puesto-frio-v1';
-const CACHE_URLS = [
+// ── Puesto Frío — Service Worker v2 ──────────────────────────────
+const CACHE = 'puesto-frio-v2';
+const PRECACHE = [
   './',
   './index.html',
   './manifest.json',
@@ -11,73 +8,73 @@ const CACHE_URLS = [
   './icon-512.png',
   'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap',
   'https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js',
+  'https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js'
 ];
 
-// ── INSTALL: precachear assets ────────────────────────────────────
-self.addEventListener('install', event => {
+// INSTALL — precachear todo
+self.addEventListener('install', e => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return Promise.allSettled(
-        CACHE_URLS.map(url => cache.add(url).catch(() => {}))
-      );
-    })
+  e.waitUntil(
+    caches.open(CACHE).then(c =>
+      Promise.allSettled(PRECACHE.map(url => c.add(url).catch(() => {})))
+    )
   );
 });
 
-// ── ACTIVATE: limpiar caches viejos ──────────────────────────────
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+// ACTIVATE — borrar caches viejos y tomar control inmediato
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── FETCH: cache-first para estáticos, network-first para Firebase ─
-self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
+// FETCH — estrategia por tipo de recurso
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
 
-  // Firebase Realtime Database → siempre red (WebSocket/HTTP)
+  // Firebase, googleapis → dejar pasar sin interceptar (red directa)
   if (url.hostname.includes('firebaseio.com') ||
       url.hostname.includes('firebase.googleapis.com') ||
-      url.hostname.includes('googleapis.com')) {
-    return; // dejar pasar sin interceptar
+      url.hostname.includes('googleapis.com') ||
+      url.hostname.includes('anthropic.com')) {
+    return;
   }
 
   // Fuentes Google → stale-while-revalidate
-  if (url.hostname.includes('fonts.')) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        const networkFetch = fetch(event.request).then(res => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-          return res;
-        });
-        return cached || networkFetch;
-      })
+  if (url.hostname.includes('fonts.gstatic.com') || url.hostname.includes('fonts.googleapis.com')) {
+    e.respondWith(
+      caches.open(CACHE).then(c =>
+        c.match(e.request).then(cached => {
+          const fresh = fetch(e.request).then(res => { c.put(e.request, res.clone()); return res; });
+          return cached || fresh;
+        })
+      )
     );
     return;
   }
 
-  // Todo lo demás → cache-first con fallback a red
-  event.respondWith(
-    caches.match(event.request).then(cached => {
+  // Todo lo demás: cache-first, fallback a red, fallback offline a index.html
+  e.respondWith(
+    caches.match(e.request).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'opaque') {
-          return response;
+      return fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
         }
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
-        return response;
+        return res;
       }).catch(() => {
-        // Offline fallback: devolver index.html para navegación
-        if (event.request.destination === 'document') {
+        if (e.request.destination === 'document') {
           return caches.match('./index.html');
         }
       });
     })
   );
+});
+
+// Escuchar mensaje para forzar actualización
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
 });
