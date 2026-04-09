@@ -2,13 +2,20 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Puesto Frío">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#163e16">
+<meta name="msapplication-TileColor" content="#163e16">
+<meta name="msapplication-TileImage" content="icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="shortcut icon" href="icon-192.png">
 <title>Puesto Frío — El Balneario</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -20,6 +27,18 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'DM Sans','Helvetica Neue',Arial,sans-serif;background:#edecea;min-height:100vh;max-width:480px;margin:0 auto;display:flex;flex-direction:column}
+/* Safe-area para notch/isla dinámica en iOS */
+#header{padding-top:max(14px, env(safe-area-inset-top, 14px)) !important}
+#bottom-nav{padding-bottom:max(8px, env(safe-area-inset-bottom, 8px)) !important}
+/* Banner instalar PWA */
+#pwa-install-banner{display:none;background:linear-gradient(135deg,#1b4d1b,#256025);color:white;padding:12px 16px;flex-shrink:0;align-items:center;gap:10px;animation:slideDown .3s ease}
+#pwa-install-banner.show{display:flex}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+.pwa-banner-icon{font-size:24px;flex-shrink:0}
+.pwa-banner-text{flex:1;font-size:12px;font-weight:600;line-height:1.4}
+.pwa-banner-text b{font-size:13px;display:block;margin-bottom:2px}
+.pwa-banner-btn{background:white;color:#1b4d1b;border:none;border-radius:9px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.pwa-banner-close{background:rgba(255,255,255,.15);border:none;color:white;width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 button{font-family:inherit;cursor:pointer}
 input,textarea,select{font-family:inherit}
 /* Rendimiento: contención de layout para secciones principales */
@@ -570,6 +589,17 @@ input,textarea,select{font-family:inherit}
 </head>
 <body>
 
+<!-- ── BANNER INSTALAR PWA ─────────────────────────────── -->
+<div id="pwa-install-banner">
+  <div class="pwa-banner-icon">📲</div>
+  <div class="pwa-banner-text">
+    <b>Instalar Puesto Frío</b>
+    Añade la app a tu pantalla de inicio para acceso rápido sin navegador
+  </div>
+  <button class="pwa-banner-btn" id="pwa-install-btn">Instalar</button>
+  <button class="pwa-banner-close" onclick="closePwaBanner()" title="Cerrar">✕</button>
+</div>
+
 <!-- ── TOAST CONTAINER ─────────────────────────────────── -->
 <div id="toast-container"></div>
 
@@ -892,13 +922,13 @@ input,textarea,select{font-family:inherit}
 // ║  Déjalo vacío ("") si prefieres configurarlo desde el botón ⚡. ║
 // ╠══════════════════════════════════════════════════════════════════╣
 const FIREBASE_CONFIG_PRECARGADA = {
-  apiKey:            "",  // 👉 "AIzaSyARtmVqU8dsIePlZJL1dycB0mjwB4kARZk"
-  authDomain:        "",  // 👉 "puesto-frio.firebaseapp.com"
-  databaseURL:       "",  // 👉 "https://puesto-frio-default-rtdb.europe-west1.firebasedatabase.app"
-  projectId:         "",  // 👉 "puesto-frio"
-  storageBucket:     "",  // 👉 "puesto-frio.firebasestorage.app"
-  messagingSenderId: "",  // 👉 "209694001112"
-  appId:             "",  // 👉 "1:209694001112:web:771c566aafa7908b4394ad"
+  apiKey:            "",  // 👉 "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  authDomain:        "",  // 👉 "tu-proyecto.firebaseapp.com"
+  databaseURL:       "",  // 👉 "https://tu-proyecto-default-rtdb.firebaseio.com"
+  projectId:         "",  // 👉 "tu-proyecto"
+  storageBucket:     "",  // 👉 "tu-proyecto.appspot.com"
+  messagingSenderId: "",  // 👉 "123456789012"
+  appId:             "",  // 👉 "1:123456789012:web:abc123"
 };
 // ╚══════════════════════════════════════════════════════════════════╝
 
@@ -2475,12 +2505,47 @@ function confirmarOcrPlatos(){
 
 render();
 
+// ── DEEPLINK desde shortcuts del manifest ─────────────────────────
+(function(){
+  const p = new URLSearchParams(location.search).get("vista");
+  if(p && ["alertas","checklist","produccion","stock","congelador","recetas","traspaso"].includes(p)){
+    vista = p; render();
+  }
+})();
+
+// ── PWA: Install prompt ───────────────────────────────────────────
+let _deferredInstall = null;
+window.addEventListener("beforeinstallprompt", function(e){
+  e.preventDefault();
+  _deferredInstall = e;
+  // Mostrar banner solo si no fue descartado antes
+  if(!localStorage.getItem("pwa_banner_dismissed")){
+    document.getElementById("pwa-install-banner").classList.add("show");
+  }
+});
+window.addEventListener("appinstalled", function(){
+  document.getElementById("pwa-install-banner").classList.remove("show");
+  _deferredInstall = null;
+  showToast("✅ App instalada correctamente","ok",3000);
+});
+document.getElementById("pwa-install-btn").addEventListener("click", function(){
+  if(!_deferredInstall) return;
+  _deferredInstall.prompt();
+  _deferredInstall.userChoice.then(function(r){
+    if(r.outcome === "accepted") showToast("📲 Instalando…","ok",2000);
+    _deferredInstall = null;
+    document.getElementById("pwa-install-banner").classList.remove("show");
+  });
+});
+function closePwaBanner(){
+  document.getElementById("pwa-install-banner").classList.remove("show");
+  localStorage.setItem("pwa_banner_dismissed","1");
+}
+
 // ── AUTO-CONECTAR FIREBASE ────────────────────────────────────────
-// Se ejecuta aquí, al final, cuando TODO (funciones, variables, DOM) está listo.
 (function(){
   const c = FIREBASE_CONFIG_PRECARGADA;
   if(c && c.databaseURL && c.apiKey && c.projectId){
-    // Valores en código fuente → guardar en localStorage y conectar
     const cfg = {
       apiKey:            c.apiKey,
       authDomain:        c.authDomain        || (c.projectId + ".firebaseapp.com"),
@@ -2493,7 +2558,6 @@ render();
     localStorage.setItem("balneario_firebase", JSON.stringify(cfg));
     initFirebase(cfg);
   } else {
-    // Sin config en código → intentar lo que hay en localStorage (config manual previa)
     const saved = loadFbConfig();
     if(saved && saved.databaseURL && saved.apiKey && saved.projectId){
       initFirebase(saved);
@@ -2502,11 +2566,21 @@ render();
 })();
 
 // ── PWA: Service Worker ───────────────────────────────────────────
-// Solo registrar fuera del preview de Claude (claudeusercontent.com)
 if("serviceWorker" in navigator && !location.hostname.includes("claudeusercontent.com")){
   window.addEventListener("load", function(){
     navigator.serviceWorker.register("./sw.js")
-      .then(function(reg){ console.log("SW registrado:", reg.scope); })
+      .then(function(reg){
+        console.log("SW registrado:", reg.scope);
+        // Notificar al SW que se actualice si hay nueva versión
+        reg.addEventListener("updatefound", function(){
+          const nw = reg.installing;
+          nw.addEventListener("statechange", function(){
+            if(nw.state === "installed" && navigator.serviceWorker.controller){
+              showToast("🔄 Nueva versión disponible — recarga para actualizar","info",5000);
+            }
+          });
+        });
+      })
       .catch(function(e){ console.warn("SW:", e.message); });
   });
 }
