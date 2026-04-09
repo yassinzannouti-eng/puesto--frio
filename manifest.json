@@ -1,15 +1,12 @@
 {
   "name": "Puesto Frío — El Balneario",
   "short_name": "Puesto Frío",
-  "description": "Gestión de cocina en tiempo real · El Balneario · Málaga",
+  "description": "Gestión de mise en place, stock y recetario para cocina profesional",
   "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#163e16",
   "theme_color": "#163e16",
-  "orientation": "portrait-primary",
-  "lang": "es",
-  "categories": ["food", "productivity"],
   "icons": [
     {
       "src": "icon-192.png",
@@ -23,5 +20,7 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["food", "productivity", "utilities"],
+  "lang": "es"
 }
