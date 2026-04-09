@@ -631,6 +631,37 @@ input,textarea,select{font-family:inherit}
   </div>
 </div>
 
+<!-- ── MODAL FIREBASE ──────────────────────────────────── -->
+<div id="fb-modal">
+  <div class="fb-modal-box">
+    <div class="fb-modal-title">⚡ Sincronización en tiempo real</div>
+    <div class="fb-modal-sub">Configura Firebase para que los compañeros veáis el mismo estado al instante.</div>
+    <div id="fb-status-row" class="fb-status-row" style="display:none">
+      <div id="fb-status-dot" style="width:10px;height:10px;border-radius:50%;background:#888;flex-shrink:0"></div>
+      <span id="fb-status-text">—</span>
+    </div>
+    <label class="fb-field-label">Database URL</label>
+    <input id="fb-url" class="fb-field-input" type="url" placeholder="https://tu-proyecto-default-rtdb.firebaseio.com">
+    <label class="fb-field-label">API Key</label>
+    <input id="fb-key" class="fb-field-input" type="text" placeholder="AIzaSy...">
+    <label class="fb-field-label">Project ID</label>
+    <input id="fb-pid" class="fb-field-input" type="text" placeholder="mi-proyecto-12345">
+    <div class="fb-instructions">
+      <b>Cómo obtener los datos (5 min):</b><br>
+      1. Ve a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a><br>
+      2. Crea un proyecto → <b>Realtime Database</b> → Crear base de datos<br>
+      3. En <b>Reglas</b> pon: <code>{"rules":{".read":true,".write":true}}</code><br>
+      4. ⚙️ Configuración del proyecto → Tus apps → copia los datos<br>
+      5. Todos los compañeros deben introducir <b>los mismos datos</b>
+    </div>
+    <div class="fb-actions">
+      <button class="btn-fb-save" onclick="saveFirebaseConfig()">💾 Conectar</button>
+      <button class="btn-fb-cancel" onclick="closeFbModal()">Cancelar</button>
+    </div>
+    <button class="btn-fb-disconnect" onclick="disconnectFirebase()">Desconectar Firebase</button>
+  </div>
+</div>
+
 <!-- ── MODAL RECETA ────────────────────────────────────── -->
 <div id="receta-modal">
   <div class="receta-modal-sheet" id="receta-modal-sheet"></div>
